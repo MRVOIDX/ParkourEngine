@@ -1,0 +1,21 @@
+name: ParkourEngine
+version: '${project.version}'
+main: dev.maghreb.parkour.ParkourPlugin
+api-version: '1.21'
+description: High-performance Parkour Engine with checkpoint tracking and leaderboards
+authors: [ MrVoidx ]
+load: STARTUP
+
+commands:
+  parkour:
+    description: Main parkour command
+    usage: /parkour <create|setstart|addcheckpoint|leaderboard|finish>
+    aliases: [ pk ]
+
+permissions:
+  parkour.admin:
+    description: Access to administrative parkour commands
+    default: op
+  parkour.play:
+    description: Access to play parkour courses
+    default: true
