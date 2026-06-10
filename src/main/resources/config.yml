@@ -1,0 +1,43 @@
+# ParkourEngine Configuration
+database:
+  # Options: sqlite, mysql
+  type: sqlite
+
+  # SQLite settings (used when type: sqlite)
+  sqlite:
+    file: parkour.db
+
+  # MySQL settings (used when type: mysql)
+  mysql:
+    host: localhost
+    port: 3306
+    database: parkour
+    username: root
+    password: password
+    pool-size: 10
+    max-lifetime: 1800000
+    connection-timeout: 30000
+
+settings:
+  # Y-level below which players are sent back to checkpoint
+  default-fail-y: 0
+  # Particle update interval in ticks for checkpoint visualization
+  particle-interval: 20
+  # Action bar update interval in ticks
+  actionbar-interval: 2
+  # Checkpoint detection radius (blocks)
+  checkpoint-radius: 1.5
+
+messages:
+  prefix: "&8[&bParkour&8] &r"
+  course-created: "&aCourse &e{course} &acreated successfully."
+  start-set: "&aStart pad registered for course &e{course}&a."
+  checkpoint-added: "&aCheckpoint &e#{index} &aregistered for course &e{course}&a."
+  finish-set: "&aFinish pad registered for course &e{course}&a."
+  run-started: "&bRun started on &e{course}&b! Good luck!"
+  run-completed: "&aRun complete! Time: &e{time}&a."
+  new-record: "&6New personal record! &e{time} &6on &e{course}&6!"
+  run-invalidated: "&cRun invalidated: &e{reason}"
+  checkpoint-reached: "&7Checkpoint &e#{index} &7reached."
+  no-course: "&cCourse &e{course} &cnot found."
+  no-permission: "&cYou don't have permission to do that."
