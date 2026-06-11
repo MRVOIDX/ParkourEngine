@@ -4,12 +4,11 @@ main: dev.maghreb.parkour.ParkourPlugin
 api-version: '1.21'
 description: High-performance Parkour Engine with checkpoint tracking and leaderboards
 authors: [ MrVoidx ]
-load: STARTUP
 
 commands:
   parkour:
     description: Main parkour command
-    usage: /parkour <create|setstart|addcheckpoint|leaderboard|finish>
+    usage: /parkour <help>
     aliases: [ pk ]
 
 permissions:

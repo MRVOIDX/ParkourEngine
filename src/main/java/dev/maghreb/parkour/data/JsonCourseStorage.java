@@ -14,72 +14,54 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
-/**
- * Manages asynchronous read/write of course data to courses.json using GSON.
- * Thread-safe via ConcurrentHashMap in-memory cache.
- */
 public class JsonCourseStorage {
 
     private final ParkourPlugin plugin;
     private final Gson gson;
     private final Path storageFile;
-    private final Map<String, ParkourCourse> courseCache;
+    private final Map<String, ParkourCourse> cache;
 
     public JsonCourseStorage(ParkourPlugin plugin) {
         this.plugin = plugin;
         this.gson = new GsonBuilder().setPrettyPrinting().create();
         this.storageFile = plugin.getDataFolder().toPath().resolve("courses.json");
-        this.courseCache = new ConcurrentHashMap<>();
+        this.cache = new ConcurrentHashMap<>();
     }
 
-    /** Loads courses from disk synchronously on startup. */
     public void load() {
         if (!Files.exists(storageFile)) {
-            saveDefaultFile();
+            writeEmpty();
             return;
         }
         try (Reader reader = Files.newBufferedReader(storageFile, StandardCharsets.UTF_8)) {
             JsonObject root = gson.fromJson(reader, JsonObject.class);
             if (root == null || !root.has("courses")) return;
-
-            JsonArray arr = root.getAsJsonArray("courses");
-            for (JsonElement el : arr) {
+            for (JsonElement el : root.getAsJsonArray("courses")) {
                 ParkourCourse course = parseCourse(el.getAsJsonObject());
-                if (course != null) {
-                    courseCache.put(course.getName().toLowerCase(), course);
-                }
+                if (course != null) cache.put(course.getName().toLowerCase(), course);
             }
-            plugin.getLogger().info("Loaded " + courseCache.size() + " course(s) from courses.json.");
+            plugin.getLogger().info("Loaded " + cache.size() + " course(s).");
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to load courses.json", e);
         }
     }
 
-    /** Saves all courses asynchronously. */
     public void saveAsync() {
         new BukkitRunnable() {
-            @Override
-            public void run() {
-                saveSync();
-            }
+            @Override public void run() { saveSync(); }
         }.runTaskAsynchronously(plugin);
     }
 
-    /** Synchronous save — call from async context. */
     public synchronized void saveSync() {
         try {
             Files.createDirectories(storageFile.getParent());
             JsonObject root = new JsonObject();
             JsonArray arr = new JsonArray();
-
-            for (ParkourCourse course : courseCache.values()) {
-                arr.add(serializeCourse(course));
-            }
+            for (ParkourCourse course : cache.values()) arr.add(serializeCourse(course));
             root.add("courses", arr);
-
-            try (Writer writer = Files.newBufferedWriter(storageFile, StandardCharsets.UTF_8,
+            try (Writer w = Files.newBufferedWriter(storageFile, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-                gson.toJson(root, writer);
+                gson.toJson(root, w);
             }
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to save courses.json", e);
@@ -87,51 +69,51 @@ public class JsonCourseStorage {
     }
 
     public void addCourse(ParkourCourse course) {
-        courseCache.put(course.getName().toLowerCase(), course);
+        cache.put(course.getName().toLowerCase(), course);
         saveAsync();
     }
 
     public void updateCourse(ParkourCourse course) {
-        courseCache.put(course.getName().toLowerCase(), course);
+        cache.put(course.getName().toLowerCase(), course);
+        saveAsync();
+    }
+
+    public void deleteCourse(String name) {
+        cache.remove(name.toLowerCase());
         saveAsync();
     }
 
     public Optional<ParkourCourse> getCourse(String name) {
-        return Optional.ofNullable(courseCache.get(name.toLowerCase()));
+        return Optional.ofNullable(cache.get(name.toLowerCase()));
     }
 
     public Collection<ParkourCourse> getAllCourses() {
-        return Collections.unmodifiableCollection(courseCache.values());
+        return Collections.unmodifiableCollection(cache.values());
     }
 
     public boolean courseExists(String name) {
-        return courseCache.containsKey(name.toLowerCase());
+        return cache.containsKey(name.toLowerCase());
     }
-
-    // ── Serialization helpers ──────────────────────────────────────────────
 
     private JsonObject serializeCourse(ParkourCourse course) {
         JsonObject obj = new JsonObject();
         obj.addProperty("name", course.getName());
-
         if (course.getStartLocation() != null)
             obj.add("start_location", serializeLocation(course.getStartLocation()));
         if (course.getFinishLocation() != null)
             obj.add("finish_location", serializeLocation(course.getFinishLocation()));
-
         obj.addProperty("fail_y_level", course.getFailYLevel());
-
-        JsonArray checkpoints = new JsonArray();
+        JsonArray cps = new JsonArray();
         for (ParkourCheckpoint cp : course.getCheckpoints()) {
-            JsonObject cpObj = new JsonObject();
-            cpObj.addProperty("order", cp.getOrder());
-            cpObj.addProperty("world", cp.getWorld());
-            cpObj.addProperty("x", cp.getX());
-            cpObj.addProperty("y", cp.getY());
-            cpObj.addProperty("z", cp.getZ());
-            checkpoints.add(cpObj);
+            JsonObject c = new JsonObject();
+            c.addProperty("order", cp.getOrder());
+            c.addProperty("world", cp.getWorld());
+            c.addProperty("x", cp.getX());
+            c.addProperty("y", cp.getY());
+            c.addProperty("z", cp.getZ());
+            cps.add(c);
         }
-        obj.add("checkpoints", checkpoints);
+        obj.add("checkpoints", cps);
         return obj;
     }
 
@@ -150,31 +132,29 @@ public class JsonCourseStorage {
         try {
             ParkourCourse course = new ParkourCourse();
             course.setName(obj.get("name").getAsString());
-
             if (obj.has("start_location"))
                 course.setStartLocation(parseLocation(obj.getAsJsonObject("start_location")));
             if (obj.has("finish_location"))
                 course.setFinishLocation(parseLocation(obj.getAsJsonObject("finish_location")));
             if (obj.has("fail_y_level"))
                 course.setFailYLevel(obj.get("fail_y_level").getAsDouble());
-
             if (obj.has("checkpoints")) {
-                List<ParkourCheckpoint> cps = new ArrayList<>();
+                List<ParkourCheckpoint> list = new ArrayList<>();
                 for (JsonElement el : obj.getAsJsonArray("checkpoints")) {
-                    JsonObject cpObj = el.getAsJsonObject();
+                    JsonObject c = el.getAsJsonObject();
                     ParkourCheckpoint cp = new ParkourCheckpoint();
-                    cp.setOrder(cpObj.get("order").getAsInt());
-                    cp.setWorld(cpObj.has("world") ? cpObj.get("world").getAsString() : "world");
-                    cp.setX(cpObj.get("x").getAsDouble());
-                    cp.setY(cpObj.get("y").getAsDouble());
-                    cp.setZ(cpObj.get("z").getAsDouble());
-                    cps.add(cp);
+                    cp.setOrder(c.get("order").getAsInt());
+                    cp.setWorld(c.has("world") ? c.get("world").getAsString() : "world");
+                    cp.setX(c.get("x").getAsDouble());
+                    cp.setY(c.get("y").getAsDouble());
+                    cp.setZ(c.get("z").getAsDouble());
+                    list.add(cp);
                 }
-                course.setCheckpoints(cps);
+                course.setCheckpoints(list);
             }
             return course;
         } catch (Exception e) {
-            plugin.getLogger().warning("Failed to parse a course entry: " + e.getMessage());
+            plugin.getLogger().warning("Skipped a malformed course entry: " + e.getMessage());
             return null;
         }
     }
@@ -185,19 +165,19 @@ public class JsonCourseStorage {
         loc.setX(obj.get("x").getAsDouble());
         loc.setY(obj.get("y").getAsDouble());
         loc.setZ(obj.get("z").getAsDouble());
-        if (obj.has("yaw")) loc.setYaw(obj.get("yaw").getAsFloat());
+        if (obj.has("yaw"))   loc.setYaw(obj.get("yaw").getAsFloat());
         if (obj.has("pitch")) loc.setPitch(obj.get("pitch").getAsFloat());
         return loc;
     }
 
-    private void saveDefaultFile() {
+    private void writeEmpty() {
         try {
             Files.createDirectories(storageFile.getParent());
             JsonObject root = new JsonObject();
             root.add("courses", new JsonArray());
-            try (Writer writer = Files.newBufferedWriter(storageFile, StandardCharsets.UTF_8,
+            try (Writer w = Files.newBufferedWriter(storageFile, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE)) {
-                gson.toJson(root, writer);
+                gson.toJson(root, w);
             }
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to create courses.json", e);

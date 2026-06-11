@@ -3,10 +3,14 @@ package dev.maghreb.parkour;
 import dev.maghreb.parkour.commands.ParkourCommand;
 import dev.maghreb.parkour.data.DatabaseManager;
 import dev.maghreb.parkour.data.JsonCourseStorage;
-import dev.maghreb.parkour.events.*;
+import dev.maghreb.parkour.events.AntiExploitListener;
+import dev.maghreb.parkour.events.PlayerMoveListener;
+import dev.maghreb.parkour.events.PlayerQuitListener;
+import dev.maghreb.parkour.license.MCLicense;
 import dev.maghreb.parkour.managers.CourseManager;
-import dev.maghreb.parkour.managers.RunManager;
 import dev.maghreb.parkour.managers.ParticleManager;
+import dev.maghreb.parkour.managers.RunManager;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.logging.Level;
@@ -26,6 +30,11 @@ public final class ParkourPlugin extends JavaPlugin {
         instance = this;
         saveDefaultConfig();
 
+        if (!MCLicense.validateKey(this, "rx8ylc07")) {
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
+
         try {
             this.databaseManager = new DatabaseManager(this);
             this.databaseManager.initialize();
@@ -38,8 +47,8 @@ public final class ParkourPlugin extends JavaPlugin {
         this.courseStorage = new JsonCourseStorage(this);
         this.courseStorage.load();
 
-        this.courseManager = new CourseManager(this, courseStorage);
-        this.runManager = new RunManager(this, databaseManager);
+        this.courseManager  = new CourseManager(this, courseStorage);
+        this.runManager     = new RunManager(this, databaseManager);
         this.particleManager = new ParticleManager(this, courseManager);
 
         getServer().getPluginManager().registerEvents(new PlayerMoveListener(this, runManager, courseManager), this);
@@ -53,21 +62,21 @@ public final class ParkourPlugin extends JavaPlugin {
         particleManager.startTask();
         runManager.startActionBarTask();
 
-        getLogger().info("ParkourEngine v" + getDescription().getVersion() + " enabled. Author: MrVoidx");
+        getLogger().info("ParkourEngine v" + getDescription().getVersion() + " by MrVoidx enabled.");
     }
 
     @Override
     public void onDisable() {
-        if (runManager != null) runManager.invalidateAllRuns("Server shutting down");
+        if (runManager     != null) runManager.invalidateAllRuns("Server shutting down");
         if (particleManager != null) particleManager.stopTask();
         if (databaseManager != null) databaseManager.shutdown();
         getLogger().info("ParkourEngine disabled.");
     }
 
-    public static ParkourPlugin getInstance() { return instance; }
+    public static ParkourPlugin getInstance()   { return instance; }
     public DatabaseManager getDatabaseManager() { return databaseManager; }
     public JsonCourseStorage getCourseStorage() { return courseStorage; }
-    public CourseManager getCourseManager() { return courseManager; }
-    public RunManager getRunManager() { return runManager; }
+    public CourseManager getCourseManager()     { return courseManager; }
+    public RunManager getRunManager()           { return runManager; }
     public ParticleManager getParticleManager() { return particleManager; }
 }

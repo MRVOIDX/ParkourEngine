@@ -1,8 +1,5 @@
 package dev.maghreb.parkour.models;
 
-/**
- * Represents a single ordered checkpoint block within a parkour course.
- */
 public class ParkourCheckpoint {
 
     private int order;
@@ -21,22 +18,18 @@ public class ParkourCheckpoint {
         this.z = z;
     }
 
-    public int getOrder() { return order; }
-    public void setOrder(int order) { this.order = order; }
-
-    public double getX() { return x; }
-    public void setX(double x) { this.x = x; }
-
-    public double getY() { return y; }
-    public void setY(double y) { this.y = y; }
-
-    public double getZ() { return z; }
-    public void setZ(double z) { this.z = z; }
-
-    public String getWorld() { return world; }
-    public void setWorld(String world) { this.world = world; }
-
     public SerializableLocation toSerializableLocation() {
         return new SerializableLocation(world, x, y, z);
     }
+
+    public int getOrder()             { return order; }
+    public void setOrder(int order)   { this.order = order; }
+    public double getX()              { return x; }
+    public void setX(double x)        { this.x = x; }
+    public double getY()              { return y; }
+    public void setY(double y)        { this.y = y; }
+    public double getZ()              { return z; }
+    public void setZ(double z)        { this.z = z; }
+    public String getWorld()          { return world; }
+    public void setWorld(String w)    { this.world = w; }
 }

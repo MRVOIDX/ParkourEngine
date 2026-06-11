@@ -8,9 +8,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-/**
- * Ensures active run state is cleaned up when a player disconnects.
- */
 public class PlayerQuitListener implements Listener {
 
     private final RunManager runManager;
